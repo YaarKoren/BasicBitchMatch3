@@ -10,6 +10,7 @@ public class Grid : MonoBehaviour {
     
         EMPTY,
         NORMAL,
+        BUBBLE,
         COUNT,
     };
 
@@ -88,6 +89,9 @@ public class Grid : MonoBehaviour {
             }
         }
 
+        Destroy(pieces[4, 4].gameObject);
+        SpwanNewPiece(4,4, PieceType.BUBBLE);
+
         StartCoroutine(Fill());
     }
 
@@ -163,6 +167,8 @@ public class Grid : MonoBehaviour {
                     GamePiece pieceBelow = pieces[x, y + 1];
                     if (pieceBelow.Type == PieceType.EMPTY)
                     {
+                        Destroy(pieceBelow.gameObject); //destroy the empty piece, otherwise this object stays alive
+
                         piece.MovableComponent.Move(x, y + 1, fillTime);
                         pieces[x, y + 1] = piece;
                         SpwanNewPiece(x, y, PieceType.EMPTY); //actually we are swapping a movable piece with an empty piece below it
@@ -184,6 +190,8 @@ public class Grid : MonoBehaviour {
             GamePiece pieceBelow = pieces[x, 0];
             if (pieceBelow.Type == PieceType.EMPTY)
             {
+                Destroy(pieceBelow.gameObject); //destroy the empty piece, otherwise this object stays alive
+
                 //we don't use the SpwanNewPiece() func cuz of the -1 thing
                 GameObject newPiece = (GameObject)Instantiate(
                      piecePrefabDict[PieceType.NORMAL],
