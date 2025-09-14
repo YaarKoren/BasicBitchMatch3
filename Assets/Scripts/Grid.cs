@@ -3,10 +3,11 @@ using System.Collections;
 using System.Collections.Generic; //to get access to dictionary class
 
 
+
 public class Grid : MonoBehaviour {
     
-    public enum PieceType
-    {
+    public enum PieceType {  //names of pieces
+    
         NORMAL,
         COUNT,
     };
@@ -33,8 +34,7 @@ public class Grid : MonoBehaviour {
 
     
     // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
+    void Start() {
         //-----copy the values from the PiecePrefab array, to the dictionary----
 
         piecePrefabDict = new Dictionary<PieceType, GameObject>();
@@ -48,14 +48,16 @@ public class Grid : MonoBehaviour {
             //TODO: what if the key already exists (and if it's not happeening why use the if)
         }
 
+
         //---Instantiate BG for each cell of the grid---
         for (int x = 0; x < xDim; x++) { //rows
-            for (int y = 0; y < yDim; y++) { //cols
+            for (int y = 0; y < yDim; y++)
+            { //cols
                 GameObject background = (GameObject)Instantiate(
                     backgroundPrefab,
-                    /*position*/GetWorldPos(x,y),
-                    /*rotation*/ Quaternion.identity//not rotated at all
-                    ); 
+                    /*position*/GetWorldPos(x, y),
+                    /*rotation*/ Quaternion.identity //not rotated at all
+                    );
                 //make the BG a child of the Grid object
                 background.transform.parent = transform;
             }
@@ -65,10 +67,11 @@ public class Grid : MonoBehaviour {
         pieces = new GamePiece[xDim, yDim];
         for (int x = 0; x < xDim; x++) { //rows
             for (int y = 0; y < yDim; y++) { //cols
+                Debug.Log("inside loop, x: " + x  + ", y: " + y);
                 GameObject newPiece = (GameObject)Instantiate(
-                    piecePrefabDict[PieceType.NORMAL], //TODO: WHY?!
+                    piecePrefabDict[PieceType.NORMAL], //using the dict to get the game object assoicates to this type
                     /*position*/ GetWorldPos(x, y),
-                    /*rotation*/ Quaternion.identity//not rotated at all
+                    /*rotation*/ Quaternion.identity //not rotated at all
                     );   
                 //change the name
                 newPiece.name = "Piece(" + x + ", " + y + ")";
@@ -79,12 +82,27 @@ public class Grid : MonoBehaviour {
                 pieces[x,y] = newPiece.GetComponent<GamePiece>();
 
                 //update the piece's info
-                pieces[x, y].init(x, y, this, PieceType.NORMAL);
+                pieces[x, y].Init(x, y, this, PieceType.NORMAL);
 
+                //set the position
+                //if (pieces[x,y].IsMovable()) {
+                    //pieces[x, y].MovableComponent.Move(x, y);
+                //}
+
+                //set the color to a random coloer
+                if (pieces[x, y].IsColored())
+                {
+                    int number_of_colors = pieces[x, y].ColorComponent.ColorsNum;
+                    ColorPiece.ColorType random_color = (ColorPiece.ColorType)Random.Range(0, number_of_colors);
+                    pieces[x, y].ColorComponent.SetColor(random_color);
+
+                }
             }
         }
-
     }
+
+
+
 
     // Update is called once per frame
     void Update()
@@ -95,7 +113,8 @@ public class Grid : MonoBehaviour {
 
     //---centralize the gird---
     //funciton to convert a grid cordinate to a world position
-    Vector2 GetWorldPos(int x, int y)
+    //public so the GamePiece could use it as well
+    public Vector2 GetWorldPos(int x, int y)
     {
         return new Vector2(transform.position.x - xDim / 2.0f + x,
             transform.position.y + yDim / 2.0f - y); //our grid starts at the top
