@@ -8,6 +8,7 @@ public class Grid : MonoBehaviour {
     
     public enum PieceType {  //names of pieces
     
+        EMPTY,
         NORMAL,
         COUNT,
     };
@@ -67,36 +68,20 @@ public class Grid : MonoBehaviour {
         pieces = new GamePiece[xDim, yDim];
         for (int x = 0; x < xDim; x++) { //rows
             for (int y = 0; y < yDim; y++) { //cols
-                Debug.Log("inside loop, x: " + x  + ", y: " + y);
-                GameObject newPiece = (GameObject)Instantiate(
-                    piecePrefabDict[PieceType.NORMAL], //using the dict to get the game object assoicates to this type
-                    /*position*/ GetWorldPos(x, y),
-                    /*rotation*/ Quaternion.identity //not rotated at all
-                    );   
-                //change the name
-                newPiece.name = "Piece(" + x + ", " + y + ")";
-                //make the piece a child of the Grid object
-                newPiece.transform.parent = transform;
-
-                //keep the piece in the array
-                pieces[x,y] = newPiece.GetComponent<GamePiece>();
-
-                //update the piece's info
-                pieces[x, y].Init(x, y, this, PieceType.NORMAL);
-
+                SpwanNewPiece(x, y, PieceType.EMPTY); //init as empty
                 //set the position
                 //if (pieces[x,y].IsMovable()) {
                     //pieces[x, y].MovableComponent.Move(x, y);
                 //}
 
                 //set the color to a random coloer
-                if (pieces[x, y].IsColored())
-                {
-                    int number_of_colors = pieces[x, y].ColorComponent.ColorsNum;
-                    ColorPiece.ColorType random_color = (ColorPiece.ColorType)Random.Range(0, number_of_colors);
-                    pieces[x, y].ColorComponent.SetColor(random_color);
+                //if (pieces[x, y].IsColored())
+                //{
+                    //int number_of_colors = pieces[x, y].ColorComponent.ColorsNum;
+                    //ColorPiece.ColorType random_color = (ColorPiece.ColorType)Random.Range(0, number_of_colors);
+                    //pieces[x, y].ColorComponent.SetColor(random_color);
 
-                }
+                //}
             }
         }
     }
@@ -119,6 +104,30 @@ public class Grid : MonoBehaviour {
         return new Vector2(transform.position.x - xDim / 2.0f + x,
             transform.position.y + yDim / 2.0f - y); //our grid starts at the top
     }
+
+    public GamePiece SpwanNewPiece(int x, int y, PieceType type) {
+        GameObject newPiece = (GameObject)Instantiate(
+            piecePrefabDict[type], //using the dict to get the game object assoicates to this type
+            /*position*/ GetWorldPos(x, y),
+            /*rotation*/ Quaternion.identity //not rotated at all
+            );
+
+        //change the name
+        newPiece.name = "Piece(" + x + ", " + y + ")";
+        
+        //make the new piece a child of the Grid object
+        newPiece.transform.parent = transform;
+
+        //store the game piece in our pieces array
+        pieces[x, y] = newPiece.GetComponent<GamePiece>();
+
+        //initialzie the piece's info/fields
+        pieces[x, y].Init(x, y, this, type);
+
+        return pieces[x, y];    
+
+    }
+
 }
 
 
