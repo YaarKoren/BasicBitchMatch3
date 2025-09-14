@@ -1,8 +1,11 @@
+using System.Collections;
 using UnityEngine;
 
 public class MovablePiece : MonoBehaviour
 {
     private GamePiece piece;
+
+    private IEnumerator moveCoroutine;
 
     private void Awake() {
         piece = GetComponent<GamePiece>();
@@ -24,10 +27,43 @@ public class MovablePiece : MonoBehaviour
         
     }
 
-    public void Move(int newX, int newY) {
-        piece.X = newX; 
-        piece.Y = newY;
-        piece.transform.localPosition = piece.GridRef.GetWorldPos(newX, newY); //the piece is a child of the grid, that's why we use local position
+    //public void Move(int newX, int newY) {
+        //piece.transform.localPosition = piece.GridRef.GetWorldPos(newX, newY); //the piece is a child of the grid, that's why we use local position
+    //}
+    
+    //wrapper function to start and stip the Coroutine move function
+    public void Move(int newX, int newY, /*hoe many the animation should wait*/ float time)
+    {
+       if (moveCoroutine != null)
+        {
+            StopCoroutine(moveCoroutine);
+        }
+
+        //get a ref to a new Corouting
+        moveCoroutine = MoveCoroutine(newX, newY, time);
+        StartCoroutine(moveCoroutine);
+    }
+
+    private IEnumerator MoveCoroutine(int newX, int newY, float time)
+    {
+        piece.X = newX;
+        piece.Y = newY; 
+
+        //---amimation---
+        //interpolate between the starting and ending pos of the piece, moving it a tiny bit each frame
+        Vector3 startPos = transform.position;
+        Vector3 endPos = piece.GridRef.GetWorldPos(newX, newY);
+
+        //interpolation is getting a value between 2 values, using a parameter t
+        //loop through t values from 0 to how long how animation should take (the varibale time) - to make our animation exactly time seconds to execute
+        //Time.deltaTime is the amount time the lastframe took
+        for (float t=0; t <= 1 * time; t += Time.deltaTime)
+        {
+            piece.transform.position = Vector3.Lerp(startPos, endPos, t / time); //divide t by time, to get a value between 0 and 1
+            yield return 0; //wait for 1 frame
+        }
+
+        piece.transform.position = endPos; //just in case didn't get to the endPos
 
     }
 }

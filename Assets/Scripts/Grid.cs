@@ -23,6 +23,8 @@ public class Grid : MonoBehaviour {
     public int xDim;
     public int yDim;
 
+    public float fillTime;  //lower filltime means the board will be filled faster
+
     public PiecePrefab[] piecePrefabs; //types of pieces to have in the inspector
     public GameObject backgroundPrefab;
 
@@ -72,7 +74,7 @@ public class Grid : MonoBehaviour {
                 SpwanNewPiece(x, y, PieceType.EMPTY); //init as empty
                 //set the position
                 //if (pieces[x,y].IsMovable()) {
-                    //pieces[x, y].MovableComponent.Move(x, y);
+                    //pieces[x, y].MovableComponent.Move(x, y, fillTime);
                 //}
 
                 //set the color to a random coloer
@@ -86,7 +88,7 @@ public class Grid : MonoBehaviour {
             }
         }
 
-        Fill();
+        StartCoroutine(Fill());
     }
 
 
@@ -132,12 +134,17 @@ public class Grid : MonoBehaviour {
     }
 
     //calls FillStep untill the board is filled
-    public void Fill()
-    {
-        while (FillStep()) {}
+    //it's a Coroutine fucntion, meaning it can execute in multiplw frames and not just one frame
+    public IEnumerator Fill()
+     {
+        while (FillStep()) {
+            //wait fillTime seconds in between fill steps
+            yield return new WaitForSeconds(fillTime);
+
+        }
     }
 
-    //moves each piece only one step
+    //moves each piece only one space
     //return TRUE if any pieces were moved
     public bool FillStep() {
         bool movePiece = false;
@@ -147,7 +154,7 @@ public class Grid : MonoBehaviour {
         {
             for (int x = 0; x<xDim; x++)
             {
-                Debug.Log("inside FillStep loop, x: " + x + ", y: " + y);
+                //Debug.Log("inside FillStep loop, x: " + x + ", y: " + y);
                 GamePiece piece = pieces[x, y];
 
                 //if it's not movable - we can't move it down to fill the empty space, so we can just ignore it
@@ -156,7 +163,7 @@ public class Grid : MonoBehaviour {
                     GamePiece pieceBelow = pieces[x, y + 1];
                     if (pieceBelow.Type == PieceType.EMPTY)
                     {
-                        piece.MovableComponent.Move(x, y + 1);
+                        piece.MovableComponent.Move(x, y + 1, fillTime);
                         pieces[x, y + 1] = piece;
                         SpwanNewPiece(x, y, PieceType.EMPTY); //actually we are swapping a movable piece with an empty piece below it
                         movePiece = true;
@@ -173,7 +180,7 @@ public class Grid : MonoBehaviour {
         //loop throuh all the cells in the top row
         for (int x = 0; x < xDim; x++)
         {
-            Debug.Log("inside FillStep loop top row, x: " + x + ", y: 0");
+            //Debug.Log("inside FillStep loop top row, x: " + x + ", y: 0");
             GamePiece pieceBelow = pieces[x, 0];
             if (pieceBelow.Type == PieceType.EMPTY)
             {
@@ -186,7 +193,7 @@ public class Grid : MonoBehaviour {
 
                 pieces[x, 0] = newPiece.GetComponent<GamePiece>();
                 pieces[x, 0].Init(x, -1, this, PieceType.NORMAL); //we set it for -1 and not 0, for animation
-                pieces[x, 0].MovableComponent.Move(x, 0);
+                pieces[x, 0].MovableComponent.Move(x, 0, fillTime);
                 pieces[x, 0].ColorComponent.SetColor( (ColorPiece.ColorType)Random.Range(0, pieces[x,0].ColorComponent.ColorsNum) );
                 movePiece = true;
 
