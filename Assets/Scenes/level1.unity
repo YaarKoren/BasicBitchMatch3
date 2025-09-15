@@ -334,7 +334,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   xDim: 9
   yDim: 9
-  fillTime: 0.2
+  fillTime: 0.6
   piecePrefabsArr:
   - type: 0
     prefab: {fileID: 53315207244054263, guid: eba032fd3ad9e9b44954c4254ad35eef, type: 3}

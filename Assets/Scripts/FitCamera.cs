@@ -3,9 +3,9 @@ using UnityEngine;
 [RequireComponent(typeof(Camera))]
 public class FitCamera2D : MonoBehaviour
 {
-    public Transform boardRoot;     // drag your existing Grid/board parent here
+    public Transform boardRoot;     // drag Grid here
     public float padding = 0.5f;    // world units around edges
-    public bool runEveryFrame = false; // enable if your board size changes at runtime
+    public bool runEveryFrame = false; // TODO: enable if  board sze changes at runtime
 
     Camera cam;
 
