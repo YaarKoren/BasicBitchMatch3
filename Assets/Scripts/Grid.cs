@@ -89,7 +89,8 @@ public class Grid : MonoBehaviour
         logicBoard = new Match3Board(yDim, xDim, customColorsNum);
 
         // 5) build initial visual board from logic (replaces EMPTY placeholders with NORMAL + colors)
-        BuildInitialFromLogic();
+        //BuildInitialFromLogic(); 
+        StartCoroutine(Fill()); 
 
         // NOTE:
         // Removed demo lines and Unity-side Fill/FillStep(). The logic board now owns rules/grav/refill.
@@ -183,6 +184,87 @@ public class Grid : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// moves each piece only one space (if any move occures)
+    /// return TRUE if any pieces were moved, FALSE otherwise
+    /// </summary>
+    // TODO: update logic board
+    public bool FillStep()
+    {
+        bool movePiece = false;
+        //loop through all cols in reverse order, bottom to top
+        //we ignore the last one cuz we are looking for pieces we can move down, and the lase one (dim-1) - we can't
+        for (int y = yDim - 2; y >= 0; y--)
+        {
+            for (int x = 0; x < xDim; x++)
+            {
+                //Debug.Log("inside FillStep loop, x: " + x + ", y: " + y);
+                GamePiece piece = pieces[x, y];
+
+                //if it's not movable - we can't move it down to fill the empty space, so we can just ignore it
+                if (piece.IsMovable())
+                {
+                    GamePiece pieceBelow = pieces[x, y + 1];
+                    if (pieceBelow.Type == PieceType.EMPTY) 
+                    {
+                        Destroy(pieceBelow.gameObject); //destroy the empty piece, otherwise this object stays alive
+
+                        piece.MovableComponent.Move(x, y + 1, fillTime);
+                        pieces[x, y + 1] = piece;
+                        SpawnNewPiece(x, y, PieceType.EMPTY); //the upper piece is now EMPTY; actually we are swapping a movable piece with an empty piece below it
+                        movePiece = true;
+
+                    }
+
+                }
+
+            }
+        }
+
+        //handle top row
+        //the top row is a special case, since empty spaces there will be filled by new pieces created (and not swapping exising movable objects)
+        //loop throuh all the cells in the top row
+        for (int x = 0; x < xDim; x++)
+        {
+            //Debug.Log("inside FillStep loop top row, x: " + x + ", y: 0");
+            GamePiece pieceBelow = pieces[x, 0];
+            if (pieceBelow.Type == PieceType.EMPTY)
+            {
+                Destroy(pieceBelow.gameObject); //destroy the empty piece, otherwise this object stays alive
+
+                //we don't use the SpwanNewPiece() func cuz of the -1 thing
+                GameObject newPiece = (GameObject)Instantiate(
+                     piecePrefabDict[PieceType.NORMAL],
+                     GetWorldPos(x, -1), //create in the "non-existing" row, above the top row
+                     Quaternion.identity);
+                newPiece.transform.parent = transform;
+
+                pieces[x, 0] = newPiece.GetComponent<GamePiece>();
+                pieces[x, 0].Init(x, -1, this, PieceType.NORMAL); //we set it for -1 and not 0, for animation
+                pieces[x, 0].MovableComponent.Move(x, 0, fillTime);
+                pieces[x, 0].ColorComponent.SetColor((ColorPiece.ColorType)Random.Range(0, pieces[x, 0].ColorComponent.ColorsNum));
+                movePiece = true;
+
+            }
+        }
+        return movePiece;
+    }
+
+
+    /// <summary>
+    /// calls FillStep untill the board is filled
+    /// it's a Coroutine fucntion, meaning it can execute in multiplw frames and not just one frame
+    /// </summary>
+    public IEnumerator Fill()
+    {
+        while (FillStep())
+        {
+            //wait fillTime seconds in between fill steps
+            yield return new WaitForSeconds(fillTime);
+
+        }
+    }
+
     // --------------------------------------------
     // Piece & grid utilities
     // --------------------------------------------
@@ -219,8 +301,6 @@ public class Grid : MonoBehaviour
     // --------------------------------------------
 
     // Removed:
-    // - IEnumerator Fill()
-    // - bool FillStep()
     // - Demo: Destroy(pieces[4,4]) / SpawnNewPiece(4,4,BUBBLE)
     // The logic board (Match3Board) owns: starting layout, matches, clear, gravity, refill, cascades.
 }
