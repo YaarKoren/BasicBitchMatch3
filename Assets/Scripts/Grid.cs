@@ -13,6 +13,7 @@ public class Grid : MonoBehaviour {
         BUBBLE,
         COUNT,
     };
+    public int customColorsNum;
 
     [System.Serializable] //to make our custom struct be seen in the inspector
     public struct PiecePrefab
@@ -72,7 +73,7 @@ public class Grid : MonoBehaviour {
         for (int x = 0; x < xDim; x++) { //rows
             for (int y = 0; y < yDim; y++) { //cols
                 //Debug.Log("inside loop, x: " + x + ", y: " + y);
-                SpwanNewPiece(x, y, PieceType.EMPTY); //init as empty
+                SpawnNewPiece(x, y, PieceType.EMPTY); //init as empty
                 //set the position
                 //if (pieces[x,y].IsMovable()) {
                     //pieces[x, y].MovableComponent.Move(x, y, fillTime);
@@ -90,7 +91,7 @@ public class Grid : MonoBehaviour {
         }
 
         Destroy(pieces[4, 4].gameObject);
-        SpwanNewPiece(4,4, PieceType.BUBBLE);
+        SpawnNewPiece(4,4, PieceType.BUBBLE);
 
         StartCoroutine(Fill());
     }
@@ -114,7 +115,7 @@ public class Grid : MonoBehaviour {
             transform.position.y + yDim / 2.0f - y); //our grid starts at the top
     }
 
-    public GamePiece SpwanNewPiece(int x, int y, PieceType type) {
+    public GamePiece SpawnNewPiece(int x, int y, PieceType type) {
         GameObject newPiece = (GameObject)Instantiate(
             piecePrefabDict[type], //using the dict to get the game object assoicates to this type
             /*position*/ GetWorldPos(x, y),
@@ -158,7 +159,7 @@ public class Grid : MonoBehaviour {
         {
             for (int x = 0; x<xDim; x++)
             {
-                //Debug.Log("inside FillStep loop, x: " + x + ", y: " + y);
+                Debug.Log("inside FillStep loop, x: " + x + ", y: " + y);
                 GamePiece piece = pieces[x, y];
 
                 //if it's not movable - we can't move it down to fill the empty space, so we can just ignore it
@@ -171,7 +172,7 @@ public class Grid : MonoBehaviour {
 
                         piece.MovableComponent.Move(x, y + 1, fillTime);
                         pieces[x, y + 1] = piece;
-                        SpwanNewPiece(x, y, PieceType.EMPTY); //actually we are swapping a movable piece with an empty piece below it
+                        SpawnNewPiece(x, y, PieceType.EMPTY); //actually we are swapping a movable piece with an empty piece below it
                         movePiece = true;
 
                     }
@@ -186,13 +187,13 @@ public class Grid : MonoBehaviour {
         //loop throuh all the cells in the top row
         for (int x = 0; x < xDim; x++)
         {
-            //Debug.Log("inside FillStep loop top row, x: " + x + ", y: 0");
+            Debug.Log("inside FillStep loop top row, x: " + x + ", y: 0");
             GamePiece pieceBelow = pieces[x, 0];
             if (pieceBelow.Type == PieceType.EMPTY)
             {
                 Destroy(pieceBelow.gameObject); //destroy the empty piece, otherwise this object stays alive
 
-                //we don't use the SpwanNewPiece() func cuz of the -1 thing
+                //we don't use the SpawnNewPiece() func cuz of the -1 thing
                 GameObject newPiece = (GameObject)Instantiate(
                      piecePrefabDict[PieceType.NORMAL],
                      GetWorldPos(x, -1), //create in the "non-existing" row, above the top row
@@ -202,7 +203,7 @@ public class Grid : MonoBehaviour {
                 pieces[x, 0] = newPiece.GetComponent<GamePiece>();
                 pieces[x, 0].Init(x, -1, this, PieceType.NORMAL); //we set it for -1 and not 0, for animation
                 pieces[x, 0].MovableComponent.Move(x, 0, fillTime);
-                pieces[x, 0].ColorComponent.SetColor( (ColorPiece.ColorType)Random.Range(0, pieces[x,0].ColorComponent.ColorsNum) );
+                pieces[x, 0].ColorComponent.SetColor( (ColorPiece.ColorType)Random.Range(0, customColorsNum) );
                 movePiece = true;
 
             }
