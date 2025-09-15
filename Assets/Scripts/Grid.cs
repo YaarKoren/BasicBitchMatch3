@@ -90,7 +90,10 @@ public class Grid : MonoBehaviour
 
         // 5) build initial visual board from logic (replaces EMPTY placeholders with NORMAL + colors)
         //BuildInitialFromLogic(); 
-        StartCoroutine(Fill()); 
+        StartCoroutine(Fill());
+
+        // 6) fit the screen view to match to android screen
+        Camera.main.GetComponent<FitCamera2D>()?.Fit();
 
         // NOTE:
         // Removed demo lines and Unity-side Fill/FillStep(). The logic board now owns rules/grav/refill.
