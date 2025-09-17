@@ -334,7 +334,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   xDim: 8
   yDim: 8
-  fillTime: 0.15
+  fillTime: 1
   piecePrefabsArr:
   - type: 0
     prefab: {fileID: 53315207244054263, guid: eba032fd3ad9e9b44954c4254ad35eef, type: 3}
@@ -343,6 +343,8 @@ MonoBehaviour:
   - type: 2
     prefab: {fileID: 53315207244054263, guid: ec9880cb58e9e0f49abb73d941cb440d, type: 3}
   backgroundPrefab: {fileID: 4539757776533119060, guid: b78217c005fa64244ad6abcb2c441772, type: 3}
+  moveTime: 1
+  disappearTime: 1
   customColorsNum: 6
   clickMask:
     serializedVersion: 2
