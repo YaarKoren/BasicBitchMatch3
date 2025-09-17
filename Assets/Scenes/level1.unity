@@ -332,9 +332,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a495f4d400539ee40b5ed0f0397d21fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  xDim: 9
-  yDim: 9
-  fillTime: 0.6
+  xDim: 8
+  yDim: 8
+  fillTime: 0.15
   piecePrefabsArr:
   - type: 0
     prefab: {fileID: 53315207244054263, guid: eba032fd3ad9e9b44954c4254ad35eef, type: 3}
@@ -343,7 +343,10 @@ MonoBehaviour:
   - type: 2
     prefab: {fileID: 53315207244054263, guid: ec9880cb58e9e0f49abb73d941cb440d, type: 3}
   backgroundPrefab: {fileID: 4539757776533119060, guid: b78217c005fa64244ad6abcb2c441772, type: 3}
-  customColorsNum: 10
+  customColorsNum: 6
+  clickMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
 --- !u!4 &1642539712
 Transform:
   m_ObjectHideFlags: 0

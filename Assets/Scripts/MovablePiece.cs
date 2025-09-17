@@ -67,3 +67,46 @@ public class MovablePiece : MonoBehaviour
 
     }
 }
+
+   /*
+    //-----------------------------------------------------------//
+
+    using System.Collections;
+using UnityEngine;
+
+/// <summary>
+/// Tiny helper that moves a piece to a target position over time.
+/// Grid.fillTime controls the duration (you already have that in your Grid).
+/// You can later replace with DOTween/LeanTween; the API stays the same.
+/// </summary>
+public class MovablePiece : MonoBehaviour
+{
+    /// <summary>
+    /// Smoothly moves the GameObject to a world-space target in 'duration' seconds.
+    /// Designed so Grid coroutines can 'yield return' it.
+    /// </summary>
+    public IEnumerator MoveTo(Vector3 target, float duration)
+    {
+        Vector3 start = transform.position;
+        float t = 0f;
+        duration = Mathf.Max(0.0001f, duration);
+
+        while (t < 1f)
+        {
+            t += Time.deltaTime / duration;
+            transform.position = Vector3.Lerp(start, target, Mathf.Clamp01(t));
+            yield return null;
+        }
+
+        transform.position = target; // snap at end
+    }
+
+    /// <summary>
+    /// Immediately snaps to a world-space position (no animation).
+    /// </summary>
+    public void SnapTo(Vector3 target)
+    {
+        transform.position = target;
+    }
+}
+   */

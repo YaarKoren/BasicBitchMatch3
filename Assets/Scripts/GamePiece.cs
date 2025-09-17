@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections;
 
 
@@ -85,8 +85,8 @@ public class GamePiece : MonoBehaviour
     }
 
     //check if the piece is movable
-    public bool IsMovable() { 
-        return movableComponent_ != null;   
+    public bool IsMovable() {
+        return movableComponent_ != null;
     }
 
     //check if the piece has color
@@ -94,5 +94,18 @@ public class GamePiece : MonoBehaviour
     {
         return colorComponent_ != null;
     }
+
+    //if on == true, make the scale 1.08 (≈8% bigger) or anything i decide
+    //if on == false, reset the scale to 1.0 (normal size)
+    public void SetSelected(bool on)
+    {
+        // simple pulse highlight; replace with outline if you want
+        transform.localScale = on ? Vector3.one * 1.15f : Vector3.one;
+    }
+
+    
+
+
 }
+
 
