@@ -19,7 +19,8 @@ public class GamePiece : MonoBehaviour
     public int X
     {
         get { return x_; }
-        set {
+        set
+        {
             if (IsMovable())
             {
                 x_ = value;
@@ -85,7 +86,8 @@ public class GamePiece : MonoBehaviour
     }
 
     //check if the piece is movable
-    public bool IsMovable() {
+    public bool IsMovable()
+    {
         return movableComponent_ != null;
     }
 
@@ -103,7 +105,30 @@ public class GamePiece : MonoBehaviour
         transform.localScale = on ? Vector3.one * 1.15f : Vector3.one;
     }
 
-    
+    // --------------------------------------------
+    // detcet mouse clicks
+    // --------------------------------------------
+
+    // called when the mosue enters an element
+    void OnMouseEnter()
+    {
+        //Debug.Log("OnMouseEnter on");
+        gridRef_.EnterPiece(this); //this = a reference to self, this GamePiece (the one that was clicked on, in this case)
+    }
+
+    //called when the mouse is pressed inside an element         
+    void OnMouseDown()
+    {
+        //Debug.Log("OnMouseDown on");
+        gridRef_.PressPiece(this);
+    }
+
+    //called when the mouse is released     
+    void OnMouseUp()
+    {
+        //Debug.Log("OnMouseUp on");
+        gridRef_.ReleasePiece();
+    }
 
 
 }
