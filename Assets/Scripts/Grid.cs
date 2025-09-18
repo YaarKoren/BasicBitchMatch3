@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using DG.Tweening;
 using System.Collections;
 using System.Collections.Generic;
 //using Unity.Android.Gradle;
@@ -7,8 +6,10 @@ using System.Collections.Generic;
 // add the logic namespace
 using Match3;
 
+
 public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece manages just one cell’s object
 {
+    public GameManager gameManager;
     public enum PieceType
     {
         EMPTY,
@@ -34,12 +35,6 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
     [Header("Prefabs")]
     public PiecePrefab[] piecePrefabsArr; // which prefab to spawn per PieceType //must include EMPTY and NORMAL at least and might add bubble
     public GameObject backgroundPrefab; //the tile behinf each cell
-
-    [Header("DOTween Animation Durations")]
-    public float moveTime = 0.20f;
-    public float disappearTime = 0.20f;
-
-
 
     [Header("Colors")]
     public int customColorsNum; // how many distinct colors the logic uses //must be <= number of ColorPiece.ColorType variants you use
@@ -112,10 +107,6 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
 
         // 5) build initial visual board from logic (replaces EMPTY placeholders with NORMAL + colors)
         BuildInitialFromLogic();
-
-        // 6) fit the screen view to match to android screen
-        // TODO: where is best to have this line?
-        Camera.main.GetComponent<FitCamera2D>()?.Fit();
 
         // NOTE:
         // Removed demo lines and Unity-side Fill/FillStep(). The logic board now owns rules/grav/refill.
@@ -198,75 +189,6 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
     }
 
 
-    //-------------------------------------------------------------------------------------------------------------
-    //                                                Animation functions--YAAR
-    //-------------------------------------------------------------------------------------------------------------
-
-    //---------------------------------------------------
-    // Disappear
-    //---------------------------------------------------
-
-    // IMPORTANT: call this BEFORE changing pieces[,] and before destroying the piece
-    /// <summary>
-    /// Gets array indices (x,y) of a piece and animates it to disappear (scale to 0).
-    /// This function does not change pieces[,] and does not destroy the object — animation only.
-    /// Note: pos is NOT world position; it is indices in pieces[ , ].
-    /// </summary>
-    public void DisappearPieceAnimation(Vector2 pos)
-    {
-        int x = (int)pos.x;
-        int y = (int)pos.y;
-        GamePiece piece = pieces[x, y];
-        if (piece == null) return;
-        piece.transform.DOScale(0, disappearTime).SetEase(Ease.OutQuint);
-    }
-
-    // IMPORTANT: call this BEFORE changing pieces[,] and before destroying the pieces
-    /// <summary>
-    /// Gets an array of indices and makes those pieces disappear (animation only).
-    /// </summary>
-    public void DisappearMultiplePiecesAnimation(Vector2[] positions)
-    {
-        foreach (Vector2 v in positions)
-            DisappearPieceAnimation(v);
-    }
-
-    //---------------------------------------------------
-    // Swap (2 pieces move one step into each other's cell)
-    //---------------------------------------------------
-
-    // IMPORTANT: call this BEFORE changing pieces[,] and before changing X/Y
-    /// <summary>
-    /// piece1: start [x1,y1] → end [x2,y2]
-    /// piece2: start [x2,y2] → end [x1,y1]
-    /// Indices are entries in pieces[ , ], not world space.
-    /// </summary>
-    public void SwapAnimation(int x1, int y1, int x2, int y2)
-    {
-        MovePieceOneStepAnimation(x1, y1, x2, y2);
-        MovePieceOneStepAnimation(x2, y2, x1, y1);
-    }
-
-    //---------------------------------------------------
-    // Move (one piece one step)
-    //---------------------------------------------------
-
-    // IMPORTANT: call this BEFORE changing pieces[,] and before changing X/Y on the piece
-    /// <summary>
-    /// Move the piece at [currX,currY] to [newX,newY] (indices in pieces[ , ]).
-    /// </summary>
-    public void MovePieceOneStepAnimation(int currX, int currY, int newX, int newY)
-    {
-        GamePiece piece = pieces[currX, currY];
-        if (piece == null) return;
-
-        Vector2 endPoint = GetWorldPos(newX, newY);
-        piece.transform.DOKill(); // kill any prior tween on this piece
-
-        piece.transform.DOMove(endPoint, moveTime).SetEase(Ease.OutQuint);
-    }
-
-
 
     // --------------------------------------------
     // Public API
@@ -280,106 +202,80 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
     /// Hook your drag script to call this.
     /// </summary>
     /// 
-    public void TrySwap(int x1, int y1, int x2, int y2)
-    {
-        if (!AreAdjacent(x1, y1, x2, y2)) return; //uses the helper func to check if the two cells we are trying to swap are adjacent
-        StartCoroutine(TrySwapRoutine(x1, y1, x2, y2)); //the next func
-    }
-    
-
-    private IEnumerator TrySwapRoutine(int x1, int y1, int x2, int y2)
-    {
-        var p1 = pieces[x1, y1]; //saves the coord saved at first cell
-        var p2 = pieces[x2, y2];
-        if (p1 == null || p2 == null) yield break; //if either spot has no piece, abort the coroutine immediately (for safedty)
-
-        //added
-        // Snapshot the logic board BEFORE we ask it to resolve anything
-        int[,] pre = logicBoard.GetBoard();
-
-        // Animate the visual swap FIRST (do NOT change pieces[,] yet)
-        SwapAnimation(x1, y1, x2, y2);
-        yield return new WaitForSeconds(moveTime);
-
-        // Predict the FIRST match set on the swapped snapshot
-        SwapInSnapshot(pre, x1, y1, x2, y2);
-        var firstMatches = FindMatchesOn(pre);      // coords in (row, col)
-        var toDisappear = ToPositions(firstMatches); // convert to (x,y) for pieces[,]
-
-
-
-        // // Ask logic to do the real swap+resolve (cascades/refill all the way) (rows=y, cols=x)
-        var a = new Match3.Coord(y1, x1); //Build the logic coordinate for the first cell. Note: logic uses (row, col) = (y, x)
-        var b = new Match3.Coord(y2, x2);
-
-
-        //Ask the rules engine to commit this swap if it forms a match
-        //Returns true if the swap makes ≥3 in a row somewhere; it will then clear, apply gravity, refill, and keep cascading until stable
-        if (logicBoard.TrySwap(a, b, out int cleared, out int cascades))
+    /*public void TrySwap(int x1, int y1, int x2, int y2)
         {
-            
-            // Valid move:
-            //    - Update the pieces[,] mapping so data matches what you now see on screen
-            pieces[x1, y1] = p2;
+            if (!AreAdjacent(x1, y1, x2, y2)) return; //uses the helper func to check if the two cells we are trying to swap are adjacent
+            StartCoroutine(TrySwapRoutine(x1, y1, x2, y2)); //the next func
+        }
+
+        private IEnumerator TrySwapRoutine(int x1, int y1, int x2, int y2) //Declares a coroutine that can yield (pause/resume across frames). It will handle the full swap attempt between two grid cells (x1,y1) and (x2,y2)
+        {
+            var p1 = pieces[x1, y1]; //saves the coord saved at first cell
+            var p2 = pieces[x2, y2];
+            if (p1 == null || p2 == null) yield break; //if either spot has no piece, abort the coroutine immediately (for safedty)
+            if (!p1.IsMovable() || !p2.IsMovable()) yield break; //if either piece cannot move (e.g., is EMPTY or has no MovablePiece), abort.(safety)
+
+            // visual: animate into each other's cells
+            p1.MovableComponent.Move(x2, y2, fillTime); //Kick off the animation that moves p1 to the other cell over fillTime seconds
+            p2.MovableComponent.Move(x1, y1, fillTime); //Kick off the animation that moves p2 to the first cell over fillTime seconds
+            //Both moves start now; they run concurrently.
+
+
+            // keep pieces[,] mapping in sync with what you see
+
+            pieces[x1, y1] = p2;//Update the 2D array so the data model matches what we’re seeing: the second piece is now sitting at (x1,y1).
             pieces[x2, y2] = p1;
 
-            // Play your disappear animation on the first matched tiles (if any)
-            if (toDisappear.Count > 0)
+            //Pause the coroutine until the swap animation should be finished, so visuals are done before we ask the logic to validate
+            yield return new WaitForSeconds(fillTime);
+
+            // ask the logic to perform/validate the swap (rows=y, cols=x)
+            var a = new Match3.Coord(y1, x1); //Build the logic coordinate for the first cell. Note: logic uses (row, col) = (y, x)
+            var b = new Match3.Coord(y2, x2);
+
+
+            //Ask the rules engine to commit this swap if it forms a match
+            //Returns true if the swap makes ≥3 in a row somewhere; it will then clear, apply gravity, refill, and keep cascading until stable
+            if (logicBoard.TrySwap(a, b, out int cleared, out int cascades))
             {
-                DisappearMultiplePiecesAnimation(toDisappear.ToArray());
-                yield return new WaitForSeconds(disappearTime);
-
-                // Remove first-wave cleared pieces so they are NOT treated as survivors
-                for (int i = 0; i < toDisappear.Count; i++)
-                {
-                    int dx = (int)toDisappear[i].x;
-                    int dy = (int)toDisappear[i].y;
-                    var gone = pieces[dx, dy];
-                    if (gone != null)
-                    {
-                        Destroy(gone.gameObject);
-                        pieces[dx, dy] = null; // mark empty for the prev snapshot
-                    }
-                }
-                // (optional) give Unity a breath to process Destroy() before snapshot
-                // yield return null;
-
+                // valid swap: repaint to the final logic state (teleports cascades for now)
+                RenderFromLogic();
             }
+            else //(no match): we need to swap back visually so the board returns to the original positions
+            {
+                // invalid swap: animate back and restore mapping
+                p1.MovableComponent.Move(x1, y1, fillTime * 0.75f); //Start animating p1 back to its original cell, a bit faster (75% of normal time)
+                p2.MovableComponent.Move(x2, y2, fillTime * 0.75f);
 
+                //Restore the array mapping so data and visuals match again
+                pieces[x1, y1] = p1;
+                pieces[x2, y2] = p2;
 
-            //replaced with next lines
-
-            // Take a PREV snapshot from visuals (before we repaint anything)
-            int[,] prev = SnapshotColorsFromPieces();
-
-            // AFTER is the final stable board from logic
-            int[,] after = logicBoard.GetBoard();
-
-            // Kick falling animation to reach AFTER
-            yield return StartCoroutine(AnimateResolveToState(prev, after));
-
-
-            // Any pieces that were scaled to 0 need to be restored for the new frame
-            ResetAllScales();
-
-           
-            
+                //Wait for the swap-back animation to finish before ending the coroutine.
+                yield return new WaitForSeconds(fillTime * 0.75f);
+            }
         }
-        else //(no match): we need to swap back visually so the board returns to the original positions
-        {
-            //  Invalid move: animate back (again, do NOT change pieces[,])
-            SwapAnimation(x2, y2, x1, y1);
-            //Wait for the swap-back animation to finish before ending the coroutine.
-            yield return new WaitForSeconds(moveTime);
-
-            // Mapping stays unchanged (board returns visually to original state)
-        }
-    }
 
 
 
+        /* public void TrySwap(int x1, int y1, int x2, int y2)
+         {
+             var a = new Coord(y1, x1); // logic expects (row, col)
+             var b = new Coord(y2, x2);
 
-
+             if (logicBoard.TrySwap(a, b, out int cleared, out int cascades)) //its false if a and b are not adjacent
+             {
+                 // TODO (optional): play swap / clear / drop / refill animations using your MovablePiece
+                 // For now, immediately repaint to the resolved state:
+                 RenderFromLogic(); //happens everytime anything happens like swaps or cascades..
+                 // Debug.Log($"Swap OK. Cleared={cleared}, Cascades={cascades}");
+             }
+             else
+             {
+                 // TODO (optional): animate swap-back for invalid move
+                 // Debug.Log("Invalid swap (no match) -> swap back");
+             }
+         }*/
 
     // --------------------------------------------
     // Rendering helpers (logic -> visuals)
@@ -389,6 +285,94 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
     /// First-time construction: only at the very beginning (right after Start()).
     /// Replaces EMPTY placeholders with NORMAL pieces and assigns colors from logic.
     /// </summary>
+    // Prevent double inputs while a swap/animation is running
+    private bool inputLocked = false;
+
+    /// <summary>
+    /// Attempt to swap two cells (Unity coords: x=col, y=row).
+    /// Guards game-over, bounds, adjacency, and input reentry,
+    /// then runs the animated attempt via coroutine.
+    /// </summary>
+    public void TrySwap(int x1, int y1, int x2, int y2)
+    {
+        // If you wired a GameManager, block input after game over
+        if (gameManager != null && gameManager.IsOver) return;
+
+        // Bounds check (safety)
+        if (x1 < 0 || x1 >= xDim || y1 < 0 || y1 >= yDim) return;
+        if (x2 < 0 || x2 >= xDim || y2 < 0 || y2 >= yDim) return;
+
+        // Only orthogonal neighbors
+        if (!AreAdjacent(x1, y1, x2, y2)) return;
+
+        if (!inputLocked)
+            StartCoroutine(TrySwapRoutine(x1, y1, x2, y2));
+    }
+
+    /// <summary>
+    /// Do the visual swap, ask the logic to validate & resolve,
+    /// then either keep the new state (valid) or swap back (invalid).
+    /// Also notifies GameManager on valid/invalid.
+    /// </summary>
+    private IEnumerator TrySwapRoutine(int x1, int y1, int x2, int y2)
+    {
+        inputLocked = true;
+
+        var p1 = pieces[x1, y1];
+        var p2 = pieces[x2, y2];
+        if (p1 == null || p2 == null) { inputLocked = false; yield break; }
+        if (!p1.IsMovable() || !p2.IsMovable()) { inputLocked = false; yield break; }
+
+        // Kick off the visual swap
+        p1.MovableComponent.Move(x2, y2, fillTime);
+        p2.MovableComponent.Move(x1, y1, fillTime);
+
+        // Keep the mapping in sync with what you see
+        pieces[x1, y1] = p2;
+        pieces[x2, y2] = p1;
+
+        // Wait for the swap animation
+        yield return new WaitForSeconds(fillTime);
+
+        // Ask the logic (logic uses (row,col) = (y,x))
+        var a = new Match3.Coord(y1, x1);
+        var b = new Match3.Coord(y2, x2);
+
+        if (logicBoard.TrySwap(a, b, out int cleared, out int cascades))
+        {
+            // Valid move: repaint to final state
+            RenderFromLogic();
+
+            // Update score/moves/win-lose
+            if (gameManager != null)
+                gameManager.OnValidSwapResolved(cleared, cascades);
+        }
+        else
+        {
+            // Invalid move: swap back visually (slightly faster)
+            p1.MovableComponent.Move(x1, y1, fillTime * 0.75f);
+            p2.MovableComponent.Move(x2, y2, fillTime * 0.75f);
+
+            // Restore mapping
+            pieces[x1, y1] = p1;
+            pieces[x2, y2] = p2;
+
+            yield return new WaitForSeconds(fillTime * 0.75f);
+
+            // Optionally consume move on invalid attempts:
+            if (gameManager != null)
+                gameManager.OnInvalidSwap();
+        }
+
+        inputLocked = false;
+    }
+
+    /// <summary>Are (x1,y1) and (x2,y2) orthogonal neighbors?</summary>
+    private bool AreAdjacent(int x1, int y1, int x2, int y2)
+    {
+        return Mathf.Abs(x1 - x2) + Mathf.Abs(y1 - y2) == 1;
+    }
+
     private void BuildInitialFromLogic()
     {
         int[,] state = logicBoard.GetBoard(); // [row, col] //gets the matrix with the colors from logicBoard.GetBoard() (it wll start with -1 probs cuz its empty)
@@ -414,12 +398,6 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
                     //SetColor(...) is a method that assigns a specific color to the piece
                     //colorpiece is a script and colortype is an enum in it that lists the colors
                     //(ColorPiece.ColorType)colorId casts that int (colorid) into the matching enum value
-                    int dropOffset = (yDim - r); // higher number = start higher, bigger fall
-                    p.transform.position = GetWorldPosAbove(c, dropOffset);
-                    p.transform.DOMove(GetWorldPos(c, r), moveTime * (0.35f + 0.10f * dropOffset))
-                              .SetEase(Ease.OutQuad);
-
-
                 }
             }
         }
@@ -450,10 +428,11 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
         }
     }
 
-    private bool AreAdjacent(int x1, int y1, int x2, int y2) //Checks if two cells are next to each other in the grid (up/down/left/right).
-    {
-        return Mathf.Abs(x1 - x2) + Mathf.Abs(y1 - y2) == 1; //It measures the difference between their x and y. If the total distance is exactly 1, they’re neighbors.
-    }
+    /* private bool AreAdjacent(int x1, int y1, int x2, int y2) //Checks if two cells are next to each other in the grid (up/down/left/right).
+     {
+         return Mathf.Abs(x1 - x2) + Mathf.Abs(y1 - y2) == 1; //It measures the difference between their x and y. If the total distance is exactly 1, they’re neighbors.
+     }
+    */
 
     private bool TryGetCellUnderMouse(out int gx, out int gy) //Converts a mouse click in world space (Unity’s coordinates) into grid cell coordinates (gx, gy).
     {
@@ -474,255 +453,6 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
         gx = x; gy = y;
         return true;
     }
-
-    // --- LOCAL: run match-finding on an int[,] board snapshot (same rules as logic) ---
-    private List<Match3.Coord> FindMatchesOn(int[,] board)
-    {
-        int rows = board.GetLength(0);
-        int cols = board.GetLength(1);
-        const int EMPTY = -1;
-
-        var toClear = new List<Match3.Coord>();
-
-        // horizontal runs
-        for (int r = 0; r < rows; r++)
-        {
-            int run = 1;
-            for (int c = 1; c < cols; c++)
-            {
-                if (board[r, c] != EMPTY && board[r, c] == board[r, c - 1])
-                {
-                    run++;
-                    if (c == cols - 1 && run >= 3)
-                        for (int k = c - run + 1; k <= c; k++) toClear.Add(new Match3.Coord(r, k));
-                }
-                else
-                {
-                    if (run >= 3)
-                        for (int k = c - run; k < c; k++) toClear.Add(new Match3.Coord(r, k));
-                    run = 1;
-                }
-            }
-        }
-
-        // vertical runs
-        for (int c = 0; c < cols; c++)
-        {
-            int run = 1;
-            for (int r = 1; r < rows; r++)
-            {
-                if (board[r, c] != EMPTY && board[r, c] == board[r - 1, c])
-                {
-                    run++;
-                    if (r == rows - 1 && run >= 3)
-                        for (int k = r - run + 1; k <= r; k++) toClear.Add(new Match3.Coord(k, c));
-                }
-                else
-                {
-                    if (run >= 3)
-                        for (int k = r - run; k < r; k++) toClear.Add(new Match3.Coord(k, c));
-                    run = 1;
-                }
-            }
-        }
-
-        return toClear;
-    }
-
-
-    // Clone + swap in a snapshot (note: logic is [row, col] = [y, x])
-    private static void SwapInSnapshot(int[,] snap, int x1, int y1, int x2, int y2)
-    {
-        int tmp = snap[y1, x1];
-        snap[y1, x1] = snap[y2, x2];
-        snap[y2, x2] = tmp;
-    }
-
-    // Convert logic coords (row,col) -> visual array indices (x=col, y=row)
-    private static List<Vector2> ToPositions(List<Match3.Coord> coords)
-    {
-        var list = new List<Vector2>(coords.Count);
-        foreach (var c in coords) list.Add(new Vector2(c.C, c.R));
-        return list;
-    }
-
-    // Optional: after teleporting state, ensure scaled pieces go back to normal
-    private void ResetAllScales()
-    {
-        for (int x = 0; x < xDim; x++)
-            for (int y = 0; y < yDim; y++)
-                if (pieces[x, y] != null) pieces[x, y].transform.localScale = Vector3.one;
-    }
-
-    //addedddddddd
-    // Snapshot current visual colors from pieces[,] into [row,col] ints (-1 for empty).
-    private int[,] SnapshotColorsFromPieces()
-    {
-        int[,] snap = new int[yDim, xDim];
-        for (int r = 0; r < yDim; r++)
-            for (int c = 0; c < xDim; c++)
-            {
-                var p = pieces[c, r];
-                snap[r, c] = (p == null || p.Type == PieceType.EMPTY || !p.IsColored())
-                             ? -1
-                             : (int)p.ColorComponent.Color;
-            }
-        return snap;
-    }
-
-    //addedddddddd
-    private int CountNonEmptyInCol(int[,] board, int c)
-    {
-        int cnt = 0;
-        for (int r = 0; r < yDim; r++) if (board[r, c] != -1) cnt++;
-        return cnt;
-    }
-
-    //addedddddddd
-    // Utility: get world pos for a "spawn row" above the board (e.g., -k)
-    // World pos for a “spawn row” above the board (row = -k is above the top)
-    private Vector2 GetWorldPosAbove(int x, int spawnRowOffset)
-    {
-        return new Vector2(
-            transform.position.x - xDim / 2f + x,
-            transform.position.y + yDim / 2f - (-spawnRowOffset)
-        );
-    }
-
-
-
-    //addedddddddd
-    private IEnumerator AnimateResolveToState(int[,] prev, int[,] after)
-    {
-        float maxDuration = 0f;                           // track longest tween so we can wait once
-        var columnSequences = new List<DG.Tweening.Sequence>(); // one sequence per column
-
-        var newPieces = new GamePiece[xDim, yDim];
-
-        // Column-by-column gravity
-        for (int c = 0; c < xDim; c++)
-        {
-            var seq = DG.Tweening.DOTween.Sequence();
-            seq.Pause();   // build first, start later so all tweens begin together
-
-
-            // Collect survivors from PREV (bottom→top)
-            var survivors = new List<GamePiece>();
-            for (int r = yDim - 1; r >= 0; r--)
-                if (prev[r, c] != -1 && pieces[c, r] != null
-                    && pieces[c, r].transform.localScale.x > 0.01f)   // ignore “disappeared” ones
-                {
-                    survivors.Add(pieces[c, r]);
-                }
-
-
-            int afterCount = CountNonEmptyInCol(after, c);
-            int survivorCount = Mathf.Min(survivors.Count, afterCount);
-            int newCount = afterCount - survivorCount;
-
-            // Target rows for survivors are the bottom `survivorCount` non-empty rows in AFTER
-            var targetRows = new List<int>(survivorCount);
-            for (int r = yDim - 1; r >= 0 && targetRows.Count < survivorCount; r--)
-                if (after[r, c] != -1) targetRows.Add(r);
-            targetRows.Reverse();   // top-most survivor gets smallest target row
-            survivors.Reverse();    // survivors top→bottom to index-match targetRows
-
-            // 1) Tween survivors straight to their FINAL rows (multi-row fall)
-            for (int i = 0; i < survivorCount; i++)
-            {
-                var piece = survivors[i];
-                int currRow = piece.Y;
-                int trgRow = targetRows[i];
-
-                Vector2 end = GetWorldPos(c, trgRow);
-                piece.transform.DOKill();
-                // duration scales a bit with distance so longer falls feel weighty
-                float dist = Mathf.Abs(trgRow - currRow);
-                float dur = Mathf.Max(0.35f, moveTime) + 0.12f * dist;
-                var t = piece.transform.DOMove(end, dur).SetEase(Ease.OutQuad);
-                t.Pause();           // so it doesn’t start before we Play() the seq
-                seq.Join(t);
-                maxDuration = Mathf.Max(maxDuration, dur);
-                newPieces[c, trgRow] = piece;
-                piece.X = c; piece.Y = trgRow;
-            }
-
-            // 2) Spawn NEW tiles above the board and drop them into remaining rows
-            if (newCount > 0)
-            {
-                var newRows = new List<int>();
-                for (int r = 0; r < yDim; r++)
-                    if (after[r, c] != -1 && newPieces[c, r] == null)
-                        newRows.Add(r);
-
-                for (int i = 0; i < newRows.Count; i++)
-                {
-                    int r = newRows[i];
-                    var p = SpawnNewPiece(c, r, PieceType.NORMAL);
-                    if (p.IsColored())
-                        p.ColorComponent.SetColor((ColorPiece.ColorType)after[r, c]);
-
-                    /*
-                    int spawnOffset = (i + 1); // stack spawns: 1,2,3… higher spawns higher
-                    p.transform.position = GetWorldPosAbove(c, spawnOffset);
-
-                    float fallSpan = (yDim + spawnOffset - r);
-                    p.transform
-                     .DOMove(GetWorldPos(c, r), moveTime * Mathf.Max(0.40f, fallSpan * 0.10f))
-                     .SetEase(Ease.OutQuad);
-
-                    
-                    */
-                    // --- before tweening the new piece ---
-                    int spawnOffset = (yDim - r);              // higher target row -> longer fall from above
-                    p.transform.position = GetWorldPosAbove(c, spawnOffset);
-
-                    // use a fall duration that scales with how far it travels
-                    float distRows = r + spawnOffset;          // from -spawnOffset down to row r
-                    p.transform.DOKill();   // clear any old tweens
-
-                    float ndur = Mathf.Max(0.35f, moveTime) + 0.10f * distRows;
-                    var nt = p.transform.DOMove(GetWorldPos(c, r), ndur).SetEase(Ease.OutQuad);
-                    nt.Pause();
-                    seq.Join(nt);
-                    maxDuration = Mathf.Max(maxDuration, ndur);
-
-                    newPieces[c, r] = p;
-                    p.X = c; 
-                    p.Y = r;
-                }
-            }
-
-            // 3) Make sure empties in AFTER are null in the new mapping
-            for (int r = 0; r < yDim; r++)
-            {
-                if (after[r, c] == -1)
-                {
-                    var old = pieces[c, r];
-                    if (old != null && newPieces[c, r] != old)
-                        Destroy(old.gameObject);
-                }
-            }
-            columnSequences.Add(seq);   
-        }
-        foreach (var s in columnSequences) s.Play();         // everything starts NOW, in sync
-        yield return new WaitForSeconds(maxDuration + 0.05f); // small safety margin
-
-
-
-        // Let tweens run for a bit so columns sync visually
-        //yield return new WaitForSeconds(moveTime * 0.9f);
-
-        // Commit the new mapping
-        pieces = newPieces;
-
-        // Final color sanity (should already match)
-        for (int r = 0; r < yDim; r++)
-            for (int c = 0; c < xDim; c++)
-                if (pieces[c, r] != null && pieces[c, r].IsColored() && after[r, c] != -1)
-                    pieces[c, r].ColorComponent.SetColor((ColorPiece.ColorType)after[r, c]);
-    }
-
 
 
     // --------------------------------------------
