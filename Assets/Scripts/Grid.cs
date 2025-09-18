@@ -62,7 +62,7 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
     private GamePiece pressedPiece_; //the piece the user pressed down on
     private GamePiece enteredPiece_; //the last piece that the user enterd the box of
 
-
+    private bool inputLocked = false;
 
 
 
@@ -291,118 +291,109 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
     /// 
     public void TrySwap(int x1, int y1, int x2, int y2)
     {
-        if (!AreAdjacent(x1, y1, x2, y2)) return; //uses the helper func to check if the two cells we are trying to swap are adjacent
-        StartCoroutine(TrySwapRoutine(x1, y1, x2, y2)); //the next func
-    }
+        if (gameManager != null && gameManager.IsOver) return;
+        if (x1 < 0 || x1 >= xDim || y1 < 0 || y1 >= yDim) return;
+        if (x2 < 0 || x2 >= xDim || y2 < 0 || y2 >= yDim) return;
+        if (!AreAdjacent(x1, y1, x2, y2)) return;
+        if (inputLocked) return;
 
+        StartCoroutine(TrySwapRoutine(x1, y1, x2, y2));
+    }
 
     private IEnumerator TrySwapRoutine(int x1, int y1, int x2, int y2)
     {
-        var p1 = pieces[x1, y1]; //saves the coord saved at first cell
-        var p2 = pieces[x2, y2];
-        if (p1 == null || p2 == null) yield break; //if either spot has no piece, abort the coroutine immediately (for safedty)
+        inputLocked = true;   // lock input at the start
 
-        //added
-        // Snapshot the logic board BEFORE we ask it to resolve anything
+        var p1 = pieces[x1, y1];
+        var p2 = pieces[x2, y2];
+        if (p1 == null || p2 == null)
+        {
+            inputLocked = false;
+            yield break;
+        }
+
+        // Snapshot board before swap
         int[,] pre = logicBoard.GetBoard();
 
-        // Animate the visual swap FIRST (do NOT change pieces[,] yet)
+        // Animate the visual swap
         SwapAnimation(x1, y1, x2, y2);
         yield return new WaitForSeconds(moveTime);
 
-
-        //added
-        // 2) TEMPORARILY commit the visual swap in the mapping so later tweens
-        //    (including swap-back) reference the correct GameObjects.
+        // Temporarily update mapping
         pieces[x1, y1] = p2;
         pieces[x2, y2] = p1;
         p1.X = x2; p1.Y = y2;
         p2.X = x1; p2.Y = y1;
 
-        // Predict the FIRST match set on the swapped snapshot
+        // Predict matches from snapshot
         SwapInSnapshot(pre, x1, y1, x2, y2);
-        var firstMatches = FindMatchesOn(pre);      // coords in (row, col)
-        var toDisappear = ToPositions(firstMatches); // convert to (x,y) for pieces[,]
+        var firstMatches = FindMatchesOn(pre);
+        var toDisappear = ToPositions(firstMatches);
 
-
-
-        // // Ask logic to do the real swap+resolve (cascades/refill all the way) (rows=y, cols=x)
-        var a = new Match3.Coord(y1, x1); //Build the logic coordinate for the first cell. Note: logic uses (row, col) = (y, x)
+        // Ask logic if the swap is valid
+        var a = new Match3.Coord(y1, x1);
         var b = new Match3.Coord(y2, x2);
 
-
-        //Ask the rules engine to commit this swap if it forms a match
-        //Returns true if the swap makes ≥3 in a row somewhere; it will then clear, apply gravity, refill, and keep cascading until stable
         if (logicBoard.TrySwap(a, b, out int cleared, out int cascades))
         {
-
-            // Valid move:
-            //    - Update the pieces[,] mapping so data matches what you now see on screen
+            // --- VALID MOVE ---
             pieces[x1, y1] = p2;
             pieces[x2, y2] = p1;
 
-            // Play your disappear animation on the first matched tiles (if any)
+            // Animate disappear for first matches
             if (toDisappear.Count > 0)
             {
                 DisappearMultiplePiecesAnimation(toDisappear.ToArray());
                 yield return new WaitForSeconds(disappearTime);
 
-                // Remove first-wave cleared pieces so they are NOT treated as survivors
-                for (int i = 0; i < toDisappear.Count; i++)
+                // Actually destroy matched objects
+                foreach (var pos in toDisappear)
                 {
-                    int dx = (int)toDisappear[i].x;
-                    int dy = (int)toDisappear[i].y;
+                    int dx = (int)pos.x;
+                    int dy = (int)pos.y;
                     var gone = pieces[dx, dy];
                     if (gone != null)
                     {
                         Destroy(gone.gameObject);
-                        pieces[dx, dy] = null; // mark empty for the prev snapshot
+                        pieces[dx, dy] = null;
                     }
                 }
-                // (optional) give Unity a breath to process Destroy() before snapshot
-                // yield return null;
-
             }
 
-
-            // Animate falling/refill to the logic's final state
-
-            // Take a PREV snapshot from visuals (before we repaint anything)
+            // Animate resolve to final state
             int[,] prev = SnapshotColorsFromPieces();
-
-            // AFTER is the final stable board from logic
             int[,] after = logicBoard.GetBoard();
-
-            // Kick falling animation to reach AFTER
             yield return StartCoroutine(AnimateResolveToState(prev, after));
 
-
-            // Any pieces that were scaled to 0 need to be restored for the new frame
             ResetAllScales();
 
-            // After cascades/refill, if no moves left -> reshuffle
+            // Check if board is stuck and reshuffle
             yield return StartCoroutine(CheckStuckAndReshuffle());
 
-
-
-
+            // Tell GameManager about the valid swap
+            if (gameManager != null)
+                gameManager.OnValidSwapResolved(cleared, cascades);
         }
-        else //(no match): we need to swap back visually so the board returns to the original positions
+        else
         {
-            //  Invalid move: animate back (again, do NOT change pieces[,])
+            // --- INVALID MOVE ---
             SwapAnimation(x2, y2, x1, y1);
-            //Wait for the swap-back animation to finish before ending the coroutine.
             yield return new WaitForSeconds(moveTime);
 
-            //deleted // Mapping stays unchanged (board returns visually to original state)
-
-            // Restore original mapping & coordinates
+            // Restore mapping
             pieces[x1, y1] = p1;
             pieces[x2, y2] = p2;
             p1.X = x1; p1.Y = y1;
             p2.X = x2; p2.Y = y2;
+
+            // Tell GameManager about the invalid swap
+            if (gameManager != null)
+                gameManager.OnInvalidSwap();
         }
+
+        inputLocked = false;   // unlock input at the end
     }
+
 
 
 
