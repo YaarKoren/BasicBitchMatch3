@@ -138,7 +138,7 @@ namespace Match3
             // try many random permutations until: no immediate matches AND at least one valid move
             for (int attempt = 0; attempt < 500; attempt++)
             {
-                // Fisher–Yates
+                // Fisher Yates
                 for (int i = colors.Count - 1; i > 0; i--)
                 {
                     int j = rng.Next(i + 1);
@@ -273,7 +273,7 @@ namespace Match3
 
         private int PickSafeColor(int r, int c) //avoids starting with matches (no 3-in-a-row horizontally/vertically at spawn)
         {
-            while (true)//Tries random colors until the color won’t create a horizontal or vertical triple at that location.
+            while (true)//Tries random colors until the color won t create a horizontal or vertical triple at that location.
             {
                 int color = rng.Next(ColorsCount);
 

@@ -19,7 +19,8 @@ public class GamePiece : MonoBehaviour
     public int X
     {
         get { return x_; }
-        set {
+        set
+        {
             if (IsMovable())
             {
                 x_ = value;
@@ -85,7 +86,8 @@ public class GamePiece : MonoBehaviour
     }
 
     //check if the piece is movable
-    public bool IsMovable() {
+    public bool IsMovable()
+    {
         return movableComponent_ != null;
     }
 
@@ -102,7 +104,6 @@ public class GamePiece : MonoBehaviour
         // simple pulse highlight; replace with outline if you want
         transform.localScale = on ? Vector3.one * 1.15f : Vector3.one;
     }
-
 
     // --------------------------------------------
     // detcet mouse clicks
@@ -128,7 +129,6 @@ public class GamePiece : MonoBehaviour
         //Debug.Log("OnMouseUp on");
         gridRef_.ReleasePiece();
     }
-
 
 
 }

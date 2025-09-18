@@ -9,6 +9,7 @@ using Match3;
 
 public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece manages just one cell’s object
 {
+    public GameManager gameManager;
     public enum PieceType
     {
         EMPTY,
@@ -66,7 +67,7 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
     private GamePiece enteredPiece_; //the last piece that the user enterd the box of
 
 
-    
+
 
 
     // --------------------------------------------
@@ -297,7 +298,7 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
         if (!AreAdjacent(x1, y1, x2, y2)) return; //uses the helper func to check if the two cells we are trying to swap are adjacent
         StartCoroutine(TrySwapRoutine(x1, y1, x2, y2)); //the next func
     }
-    
+
 
     private IEnumerator TrySwapRoutine(int x1, int y1, int x2, int y2)
     {
@@ -338,7 +339,7 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
         //Returns true if the swap makes ≥3 in a row somewhere; it will then clear, apply gravity, refill, and keep cascading until stable
         if (logicBoard.TrySwap(a, b, out int cleared, out int cascades))
         {
-            
+
             // Valid move:
             //    - Update the pieces[,] mapping so data matches what you now see on screen
             pieces[x1, y1] = p2;
@@ -474,7 +475,7 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
                 if (p == null) continue;
                 if (p.Type == PieceType.EMPTY) continue;
                 if (!p.IsColored()) continue;
-                
+
                 int colorId = state[r, c];
                 p.ColorComponent.SetColor((ColorPiece.ColorType)colorId);
             }
@@ -719,7 +720,7 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
                     if (p.IsColored())
                         p.ColorComponent.SetColor((ColorPiece.ColorType)after[r, c]);
 
-                    
+
                     // --- before tweening the new piece ---
                     int spawnOffset = (yDim - r);              // higher target row -> longer fall from above
                     p.transform.position = GetWorldPosAbove(c, spawnOffset);
@@ -735,7 +736,7 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
                     maxDuration = Mathf.Max(maxDuration, ndur);
 
                     newPieces[c, r] = p;
-                    p.X = c; 
+                    p.X = c;
                     p.Y = r;
                 }
             }
@@ -750,7 +751,7 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
                         Destroy(old.gameObject);
                 }
             }
-            columnSequences.Add(seq);   
+            columnSequences.Add(seq);
         }
         foreach (var s in columnSequences) s.Play();         // everything starts NOW, in sync
         yield return new WaitForSeconds(maxDuration + 0.05f); // small safety margin
@@ -833,6 +834,11 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
     }
 
 
+        // tell logic to reshuffle colors, then animate a rebuild
+        logicBoard.ReshuffleBoard();
+        int[,] after = logicBoard.GetBoard();
+        yield return StartCoroutine(AnimateReshuffleToState(after));
+    }
 
 
 
