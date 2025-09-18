@@ -36,10 +36,6 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
     public PiecePrefab[] piecePrefabsArr; // which prefab to spawn per PieceType //must include EMPTY and NORMAL at least and might add bubble
     public GameObject backgroundPrefab; //the tile behinf each cell
 
-    [Header("Board Offset (change to fit android screen)")]
-    public float xOffset = 2f;
-    public float yOffset = 2f;
-
     [Header("DOTween Animation Durations")]
     public float moveTime = 0.20f;
     public float disappearTime = 0.20f;
@@ -207,7 +203,7 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
             
         }
         */
-       
+
     }
 
 
@@ -642,8 +638,8 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
     private Vector2 GetWorldPosAbove(int x, int spawnRowOffset)
     {
         return new Vector2(
-            transform.position.x - xDim / xOffset + x,
-            transform.position.y + yDim / yOffset - (-spawnRowOffset)
+            transform.position.x - xDim / 2f + x,
+            transform.position.y + yDim / 2f - (-spawnRowOffset)
         );
     }
 
@@ -834,11 +830,6 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
     }
 
 
-        // tell logic to reshuffle colors, then animate a rebuild
-        logicBoard.ReshuffleBoard();
-        int[,] after = logicBoard.GetBoard();
-        yield return StartCoroutine(AnimateReshuffleToState(after));
-    }
 
 
 
