@@ -35,6 +35,10 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
     public PiecePrefab[] piecePrefabsArr; // which prefab to spawn per PieceType //must include EMPTY and NORMAL at least and might add bubble
     public GameObject backgroundPrefab; //the tile behinf each cell
 
+    [Header("Board Offset (change to fit android screen)")]
+    public float xOffset = 2f;
+    public float yOffset = 2f;
+
     [Header("DOTween Animation Durations")]
     public float moveTime = 0.20f;
     public float disappearTime = 0.20f;
@@ -57,14 +61,12 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
     private GamePiece selected;
     public LayerMask clickMask = ~0;   // default: everything
 
+    //new selection and clicks
+    private GamePiece pressedPiece_; //the piece the user pressed down on
+    private GamePiece enteredPiece_; //the last piece that the user enterd the box of
 
-    /*
-        // ===== Added: simple selection & input handling =====
-        private GamePiece selected;            // currently selected visual piece (can be null)
-        [Tooltip("Raycast layer for pieces/background if you want to filter mouse hits.")]
-        public LayerMask clickMask = ~0;       // default: everything
-        // ================================================
-    */
+
+    
 
 
     // --------------------------------------------
@@ -117,6 +119,11 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
         // TODO: where is best to have this line?
         Camera.main.GetComponent<FitCamera2D>()?.Fit();
 
+        //check if there is possible matches and if no then reshuffle
+        //So if the initial random board accidentally has zero moves, it’ll reshuffle immediately
+        StartCoroutine(CheckStuckAndReshuffle());
+
+
         // NOTE:
         // Removed demo lines and Unity-side Fill/FillStep(). The logic board now owns rules/grav/refill.
         // If you want animated falling later, we’ll add a diff-based animation step instead of repainting.
@@ -135,6 +142,8 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
     /// </summary>
     void Update() // Runs once per frame
     {
+        //deleted the click to swap animation cuz we changed it to drag to swap animation
+        /*
         // LEFT CLICK: pick a cell and maybe swap
         //Input.GetMouseButtonDown(0)  -> Did the player left-click this frame?
         //// Convert mouse to grid cell (gx, gy); only true if it's inside the board
@@ -143,7 +152,10 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
             // 1) Clicked outside the board? -> cancel selection and stop
             if (!TryGetCellUnderMouse(out int gx, out int gy))
             {
-                if (selected != null) { selected.SetSelected(false); selected = null; }
+                if (selected != null) 
+                { selected.SetSelected(false); 
+                    selected = null; 
+                }
                 return;
             }
 
@@ -193,7 +205,7 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
             }
             
         }
-
+        */
        
     }
 
@@ -203,7 +215,7 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
     //-------------------------------------------------------------------------------------------------------------
 
     //---------------------------------------------------
-    // Disappear
+    // Disappear animation
     //---------------------------------------------------
 
     // IMPORTANT: call this BEFORE changing pieces[,] and before destroying the piece
@@ -301,6 +313,15 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
         SwapAnimation(x1, y1, x2, y2);
         yield return new WaitForSeconds(moveTime);
 
+
+        //added
+        // 2) TEMPORARILY commit the visual swap in the mapping so later tweens
+        //    (including swap-back) reference the correct GameObjects.
+        pieces[x1, y1] = p2;
+        pieces[x2, y2] = p1;
+        p1.X = x2; p1.Y = y2;
+        p2.X = x1; p2.Y = y1;
+
         // Predict the FIRST match set on the swapped snapshot
         SwapInSnapshot(pre, x1, y1, x2, y2);
         var firstMatches = FindMatchesOn(pre);      // coords in (row, col)
@@ -347,7 +368,7 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
             }
 
 
-            //replaced with next lines
+            // Animate falling/refill to the logic's final state
 
             // Take a PREV snapshot from visuals (before we repaint anything)
             int[,] prev = SnapshotColorsFromPieces();
@@ -362,8 +383,12 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
             // Any pieces that were scaled to 0 need to be restored for the new frame
             ResetAllScales();
 
-           
-            
+            // After cascades/refill, if no moves left -> reshuffle
+            yield return StartCoroutine(CheckStuckAndReshuffle());
+
+
+
+
         }
         else //(no match): we need to swap back visually so the board returns to the original positions
         {
@@ -372,7 +397,13 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
             //Wait for the swap-back animation to finish before ending the coroutine.
             yield return new WaitForSeconds(moveTime);
 
-            // Mapping stays unchanged (board returns visually to original state)
+            //deleted // Mapping stays unchanged (board returns visually to original state)
+
+            // Restore original mapping & coordinates
+            pieces[x1, y1] = p1;
+            pieces[x2, y2] = p2;
+            p1.X = x1; p1.Y = y1;
+            p2.X = x2; p2.Y = y2;
         }
     }
 
@@ -529,6 +560,32 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
         return toClear;
     }
 
+    //detect mouse clicking
+    //assign values to the private variables
+    public void PressPiece(GamePiece pressedPiece)
+    {
+        //Debug.Log("inside PressedPiece function");
+        pressedPiece_ = pressedPiece;
+    }
+
+    public void EnterPiece(GamePiece enteredPiece)
+    {
+        //Debug.Log("inside EnterPiece function");
+        enteredPiece_ = enteredPiece;
+    }
+
+    public void ReleasePiece()
+
+    {
+        //Debug.Log("inside ReleasePiece function");
+        if (AreAdjacent(pressedPiece_.X, pressedPiece_.Y, enteredPiece_.X, enteredPiece_.Y))
+        {
+            //Debug.Log("are adjecant - inside if");
+
+            TrySwap(pressedPiece_.X, pressedPiece_.Y, enteredPiece_.X, enteredPiece_.Y); // this also check if adjacent
+        }
+    }
+
 
     // Clone + swap in a snapshot (note: logic is [row, col] = [y, x])
     private static void SwapInSnapshot(int[,] snap, int x1, int y1, int x2, int y2)
@@ -584,8 +641,8 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
     private Vector2 GetWorldPosAbove(int x, int spawnRowOffset)
     {
         return new Vector2(
-            transform.position.x - xDim / 2f + x,
-            transform.position.y + yDim / 2f - (-spawnRowOffset)
+            transform.position.x - xDim / xOffset + x,
+            transform.position.y + yDim / yOffset - (-spawnRowOffset)
         );
     }
 
@@ -662,17 +719,7 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
                     if (p.IsColored())
                         p.ColorComponent.SetColor((ColorPiece.ColorType)after[r, c]);
 
-                    /*
-                    int spawnOffset = (i + 1); // stack spawns: 1,2,3… higher spawns higher
-                    p.transform.position = GetWorldPosAbove(c, spawnOffset);
-
-                    float fallSpan = (yDim + spawnOffset - r);
-                    p.transform
-                     .DOMove(GetWorldPos(c, r), moveTime * Mathf.Max(0.40f, fallSpan * 0.10f))
-                     .SetEase(Ease.OutQuad);
-
                     
-                    */
                     // --- before tweening the new piece ---
                     int spawnOffset = (yDim - r);              // higher target row -> longer fall from above
                     p.transform.position = GetWorldPosAbove(c, spawnOffset);
@@ -723,6 +770,70 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
                     pieces[c, r].ColorComponent.SetColor((ColorPiece.ColorType)after[r, c]);
     }
 
+    //if no possible matches then board reshuffle
+    private IEnumerator CheckStuckAndReshuffle()
+    {
+        if (logicBoard.HasAnyValidSwap())
+            yield break;
+
+        // tell logic to reshuffle colors, then animate a rebuild
+        logicBoard.ReshuffleBoard();
+        int[,] after = logicBoard.GetBoard();
+        yield return StartCoroutine(AnimateReshuffleToState(after));
+    }
+
+    //reshuffle animation
+    private IEnumerator AnimateReshuffleToState(int[,] after)
+    {
+        // quick “pulse” to signal shuffle
+        float pulse = 0.12f;
+        for (int x = 0; x < xDim; x++)
+            for (int y = 0; y < yDim; y++)
+                if (pieces[x, y] != null)
+                    pieces[x, y].transform
+                        .DOScale(0.9f, pulse).SetLoops(2, LoopType.Yoyo);
+
+        yield return new WaitForSeconds(pulse * 2f);
+
+        // destroy all current visuals
+        for (int x = 0; x < xDim; x++)
+            for (int y = 0; y < yDim; y++)
+            {
+                if (pieces[x, y] != null)
+                {
+                    Destroy(pieces[x, y].gameObject);
+                    pieces[x, y] = null;
+                }
+            }
+
+        // respawn everything from the reshuffled logic board with a fall-from-above tween
+        float maxDur = 0f;
+        for (int r = 0; r < yDim; r++)
+        {
+            for (int c = 0; c < xDim; c++)
+            {
+                if (after[r, c] == -1) continue;
+
+                var p = SpawnNewPiece(c, r, PieceType.NORMAL);
+                if (p.IsColored())
+                    p.ColorComponent.SetColor((ColorPiece.ColorType)after[r, c]);
+
+                int spawnOffset = (yDim - r) + Random.Range(0, 2);
+                p.transform.position = GetWorldPosAbove(c, spawnOffset + 2);
+
+                float dur = Mathf.Max(0.35f, moveTime) + 0.10f * (spawnOffset + r);
+                p.transform.DOMove(GetWorldPos(c, r), dur).SetEase(Ease.OutQuad);
+                maxDur = Mathf.Max(maxDur, dur);
+
+                p.X = c; p.Y = r;
+            }
+        }
+
+        yield return new WaitForSeconds(maxDur + 0.05f);
+    }
+
+
+
 
 
     // --------------------------------------------
@@ -755,40 +866,4 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
 
         return pieces[x, y];
     }
-/*
-    // ===== Added: helpers used by the click-to-swap logic =====
-
-    /// <summary>
-    /// Are (x1,y1) and (x2,y2) orthogonally adjacent?
-    /// </summary>
-    private bool AreAdjacent(int x1, int y1, int x2, int y2)
-    {
-        return Mathf.Abs(x1 - x2) + Mathf.Abs(y1 - y2) == 1;
-    }
-
-    /// <summary>
-    /// Convert a mouse click in world space to a grid cell (gx,gy).
-    /// Returns false if outside the board bounds.
-    /// </summary>
-    private bool TryGetCellUnderMouse(out int gx, out int gy)
-    {
-        gx = gy = -1;
-
-        var cam = Camera.main;
-        if (cam == null) return false;
-
-        Vector3 world = cam.ScreenToWorldPoint(Input.mousePosition);
-        // Inverse of GetWorldPos:
-        float left = transform.position.x - xDim / 2.0f;
-        float top = transform.position.y + yDim / 2.0f;
-
-        int x = Mathf.RoundToInt(world.x - left);
-        int y = Mathf.RoundToInt(top - world.y);
-
-        if (x < 0 || x >= xDim || y < 0 || y >= yDim) return false;
-
-        gx = x; gy = y;
-        return true;
-    }
-*/
 }
