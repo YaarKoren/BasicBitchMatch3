@@ -73,17 +73,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   colorSprites:
   - color: 0
-    sprite: {fileID: 1300032593054250100, guid: 2a4d3be33af7bfb4f996958ea4e33861, type: 3}
+    sprite: {fileID: -8283620988547500454, guid: f8cda82e00bf89641afedcb70eb59892, type: 3}
   - color: 1
-    sprite: {fileID: -4786490970852089639, guid: 01e7e463eeb87ce45bb9dd647f41bb77, type: 3}
+    sprite: {fileID: 5604796196903453309, guid: b14e75fe1ee187f489d242cd18553593, type: 3}
   - color: 2
-    sprite: {fileID: 7178029279597677544, guid: 109204bb8cae36c40a2ef6fcb76b2647, type: 3}
+    sprite: {fileID: -2257292171129640764, guid: e27dbe900483b0b4a8788a0b20df1951, type: 3}
   - color: 3
-    sprite: {fileID: 3611328583111057198, guid: e6f9ab7cea9d59a4bb76a1defd1bfe48, type: 3}
+    sprite: {fileID: -4798825762170945512, guid: aaf030b92e330d04b909401c57db8986, type: 3}
   - color: 4
-    sprite: {fileID: -2546608473994464285, guid: 7c29b1c649d64264fac4e2b23c6994d9, type: 3}
+    sprite: {fileID: -3385415037828575978, guid: 4ea0841e805f9d247ac3201df5c7b0c3, type: 3}
   - color: 5
-    sprite: {fileID: -3429198335702019453, guid: 01346b515c8885a40ade5313db688d48, type: 3}
+    sprite: {fileID: -5792511334730316588, guid: c683beb3e92ed514c8bad882fce0e1f7, type: 3}
 --- !u!1 &3274353256587421838
 GameObject:
   m_ObjectHideFlags: 0

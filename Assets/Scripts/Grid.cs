@@ -113,6 +113,10 @@ public class Grid : MonoBehaviour //Grid manages the whole board while GamePiece
         // 5) build initial visual board from logic (replaces EMPTY placeholders with NORMAL + colors)
         BuildInitialFromLogic();
 
+        // 6) fit the screen view to match to android screen
+        // TODO: where is best to have this line?
+        Camera.main.GetComponent<FitCamera2D>()?.Fit();
+
         // NOTE:
         // Removed demo lines and Unity-side Fill/FillStep(). The logic board now owns rules/grav/refill.
         // If you want animated falling later, we’ll add a diff-based animation step instead of repainting.
